@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Маршрутизатор — Google Maps</title>
+<style>
+  :root{
+    --ink:#16232b;
+    --paper:#f4f2ec;
+    --panel:#ffffff;
+    --line:#dcd7c9;
+    --blue:#1c4a63;
+    --gold:#c1873b;
+    --muted:#6b6f66;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+    padding-bottom: 40px;
+  }
+  header{
+    padding:18px 20px 14px;
+    border-bottom:2px solid var(--ink);
+  }
+  header h1{ font-size:19px; margin:0 0 4px; font-weight:700; }
+  header .sub{ font-size:12.5px; color:var(--muted); }
+  main{ max-width:640px; margin:0 auto; padding:18px 20px; display:flex; flex-direction:column; gap:16px; }
+  label{
+    font-size:12px; text-transform:uppercase; letter-spacing:0.06em;
+    color:var(--muted); font-weight:600; display:block; margin-bottom:6px;
+  }
+  textarea{
+    width:100%; min-height:170px; resize:vertical;
+    border:1.5px solid var(--line); border-radius:var(--radius);
+    padding:10px; font-size:13px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    background:var(--panel); color:var(--ink);
+  }
+  .hint{ font-size:11.5px; color:var(--muted); margin-top:5px; }
+  .row{ display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; }
+  .field{ display:flex; flex-direction:column; }
+  input[type=number]{
+    width:70px; padding:7px 8px; border:1.5px solid var(--line);
+    border-radius:8px; font-size:13px;
+  }
+  button{
+    background:var(--blue); color:#fff; border:none;
+    padding:11px 18px; border-radius:8px; font-size:13.5px;
+    font-weight:600; cursor:pointer; letter-spacing:0.02em;
+  }
+  button:hover{ background:#153a4d; }
+  button.ghost{ background:transparent; color:var(--blue); border:1.5px solid var(--blue); }
+  #status{ font-size:12.5px; color:var(--muted); white-space:pre-line; }
+  .days{ display:flex; flex-direction:column; gap:12px; }
+  .daycard{
+    border:1.5px solid var(--line); border-radius:var(--radius);
+    background:var(--panel); overflow:hidden;
+  }
+  .daycard summary{
+    cursor:pointer; padding:11px 14px; font-size:13.5px; font-weight:700;
+    display:flex; align-items:center; gap:8px; list-style:none;
+  }
+  .daycard summary::-webkit-details-marker{ display:none; }
+  .swatch{ width:12px; height:12px; border-radius:50%; flex:0 0 auto; }
+  .daycount{ margin-left:auto; font-weight:500; color:var(--muted); font-size:12px; }
+  .daybody{ padding:0 14px 14px; }
+  ol.stoplist{ margin:0 0 10px; padding-left:22px; font-size:12.5px; line-height:1.55; }
+  ol.stoplist li{ padding:1px 0; }
+  .legwrap{ display:flex; flex-direction:column; gap:6px; }
+  .leg{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:8px; padding:8px 10px; background:var(--paper);
+    border:1px solid var(--line); border-radius:8px; font-size:12.5px;
+  }
+  a.gmaps{
+    color:var(--blue); text-decoration:none; font-weight:600; font-size:12.5px;
+    white-space:nowrap;
+  }
+  a.gmaps:hover{ text-decoration:underline; }
+  .legend-note{ font-size:11.5px; color:var(--muted); border-top:1px dashed var(--line); padding-top:12px; }
+  .warn{ color:#a5501f; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Маршрутизатор — прямо в Google Maps</h1>
+  <div class="sub">Группировка адресов по дням (20–30 точек рядом) и готовые ссылки на маршрут в Google Maps</div>
+</header>
+
+<main>
+  <div>
+    <label for="addrs">Адреса (по одному в строке, желательно с индексом — PLZ)</label>
+    <textarea id="addrs" placeholder="Sendlinger Str. 7, 80331 München&#10;Leopoldstr. 50, 80802 München&#10;...">Marienplatz 1, 80331 München
+Sendlinger Str. 7, 80331 München
+Leopoldstr. 50, 80802 München
+Rosenheimer Str. 12, 81667 München
+Landsberger Str. 100, 80339 München
+Fürstenrieder Str. 5, 80686 München
+Tegernseer Landstr. 20, 81541 München
+Ungererstr. 15, 80805 München</textarea>
+    <div class="hint">Группировка идёт по почтовому индексу (5 цифр) как по географическому признаку — соседние индексы обычно рядом друг с другом в Мюнхене. Адреса без индекса попадут в отдельную группу «без индекса» в конце.</div>
+  </div>
+
+  <div class="row">
+    <div class="field">
+      <label for="minPts">Мин. точек в день</label>
+      <input type="number" id="minPts" value="20" min="1" max="80">
+    </div>
+    <div class="field">
+      <label for="maxPts">Макс. точек в день</label>
+      <input type="number" id="maxPts" value="30" min="1" max="80">
+    </div>
+    <button id="runBtn">Построить маршруты</button>
+    <button class="ghost" id="clearBtn" type="button">Очистить</button>
+  </div>
+
+  <div id="status"></div>
+  <div id="days" class="days"></div>
+
+  <div class="legend-note">
+    Каждый день разбит на «отрезки» по 20 точек (с общей точкой на стыке для непрерывности) — открывайте их по очереди. Если Google Maps у тебя откажется строить маршрут на 20 точках сразу (бывает нестабильно у самого Google), уменьши число в коде (LEG_SIZE) или дели вручную. Внутри дня порядок — по индексу и улице; в самом приложении Google Maps можно нажать «⋮ → Оптимизировать порядок», если оно предложит это для добавленных вручную точек.
+  </div>
+</main>
+
+<script>
+const DAY_COLORS = ["#1c4a63","#c1873b","#7a8c5a","#a8425e","#4d6b8a","#8a5a3b","#4a7a72","#7a4a7a","#b5892f","#3b6b4d"];
+const LEG_SIZE = 20; // points per Google Maps link segment
+
+const statusEl = document.getElementById('status');
+const daysEl = document.getElementById('days');
+const runBtn = document.getElementById('runBtn');
+
+function setStatus(msg){ statusEl.textContent = msg; }
+
+function extractPLZ(address){
+  const m = address.match(/\b(\d{5})\b/);
+  return m ? m[1] : null;
+}
+
+function chunk(list, min, max){
+  const groups = [];
+  let cur = [];
+  for(const item of list){
+    cur.push(item);
+    if(cur.length >= max){ groups.push(cur); cur = []; }
+  }
+  if(cur.length){
+    if(groups.length && cur.length < min){
+      groups[groups.length-1] = groups[groups.length-1].concat(cur);
+    } else {
+      groups.push(cur);
+    }
+  }
+  return groups;
+}
+
+function gmapsLink(addresses){
+  return 'https://www.google.com/maps/dir/' + addresses.map(a=>encodeURIComponent(a)).join('/');
+}
+
+document.getElementById('clearBtn').addEventListener('click', ()=>{
+  document.getElementById('addrs').value = '';
+  daysEl.innerHTML = '';
+  setStatus('');
+});
+
+runBtn.addEventListener('click', ()=>{
+  const raw = document.getElementById('addrs').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  if(raw.length === 0){ setStatus('Вставьте хотя бы один адрес.'); return; }
+
+  const minP = parseInt(document.getElementById('minPts').value) || 20;
+  const maxP = parseInt(document.getElementById('maxPts').value) || 30;
+
+  const withPLZ = [];
+  const withoutPLZ = [];
+  raw.forEach(addr=>{
+    const plz = extractPLZ(addr);
+    if(plz) withPLZ.push({ addr, plz });
+    else withoutPLZ.push({ addr, plz: null });
+  });
+
+  // sort by postal code, then keep original relative order within same code
+  withPLZ.sort((a,b)=> a.plz.localeCompare(b.plz));
+
+  const groups = chunk(withPLZ, minP, maxP);
+  if(withoutPLZ.length){
+    const woGroups = chunk(withoutPLZ, minP, maxP);
+    woGroups.forEach(g=>groups.push(g));
+  }
+
+  daysEl.innerHTML = '';
+  setStatus(`Готово: ${raw.length} адресов → ${groups.length} дн.` +
+    (withoutPLZ.length ? `\n${withoutPLZ.length} адрес(ов) без индекса — вынесены в отдельную группу.` : ''));
+
+  groups.forEach((group, dayIdx)=>{
+    const color = DAY_COLORS[dayIdx % DAY_COLORS.length];
+    const isNoPLZ = group.every(g=>g.plz===null);
+    const addresses = group.map(g=>g.addr);
+
+    // build legs with a 1-point overlap between segments for continuity
+    const legs = [];
+    let idx = 0;
+    while(idx < addresses.length){
+      const start = idx === 0 ? idx : idx - 1;
+      const slice = addresses.slice(start, start + LEG_SIZE);
+      legs.push(slice);
+      idx += (LEG_SIZE - 1);
+    }
+
+    const card = document.createElement('details');
+    card.className = 'daycard';
+    card.open = dayIdx === 0;
+
+    const legsHtml = legs.map((leg, li)=>{
+      const label = legs.length>1
+        ? `Отрезок ${li+1} (точки ${li===0?1:((li*(LEG_SIZE-1))+1)}–${Math.min(li*(LEG_SIZE-1)+LEG_SIZE, addresses.length)})`
+        : 'Весь маршрут';
+      return `<div class="leg"><span>${label} · ${leg.length} т.</span><a class="gmaps" href="${gmapsLink(leg)}" target="_blank" rel="noopener">Открыть →</a></div>`;
+    }).join('');
+
+    card.innerHTML = `
+      <summary><span class="swatch" style="background:${color}"></span>${isNoPLZ ? 'Без индекса' : 'День '+(dayIdx+1)}<span class="daycount">${group.length} точек</span></summary>
+      <div class="daybody">
+        <ol class="stoplist">
+          ${group.map(g=>`<li>${g.addr}${g.plz ? '' : ' <span class="warn">— индекс не найден</span>'}</li>`).join('')}
+        </ol>
+        <div class="legwrap">${legsHtml}</div>
+      </div>
+    `;
+    daysEl.appendChild(card);
+  });
+});
+</script>
+
+</body>
+</html>
